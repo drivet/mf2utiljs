@@ -74,7 +74,7 @@ export interface SimplifiedCite {
   'content-plain'?: string;
 }
 
-export type SimplifiedPost = SimplifiedEvent | SimplifiedEntry | SimplfiedCite;
+export type SimplifiedPost = SimplifiedEvent | SimplifiedEntry | SimplifiedCite;
 
 export interface SimplifiedFeed {
   name?: string;
