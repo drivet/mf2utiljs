@@ -9,6 +9,7 @@ import {
   interpret_common_properties,
   interpret_entry,
   interpret_event,
+  interpret_feed,
   post_type_discovery,
   representative_hcard,
 } from './mf2';
@@ -1496,5 +1497,74 @@ describe('interpret entry tests', () => {
     expect(event?.['bookmark-of']).toEqual([
       { type: 'entry', author: { url: 'https://author_page' }, url: 'https://example1.org' },
     ]);
+  });
+});
+
+describe('interpret feed tests', () => {
+  it('should produce a simplified feed from children', async () => {
+    const doc: ParsedDocument = {
+      rels: {
+        author: ['https://author_page'],
+      },
+      'rel-urls': {},
+      items: [
+        {
+          type: ['h-feed'],
+          properties: {
+            name: ['this is a feed'],
+          },
+          children: [
+            {
+              type: ['h-event'],
+              properties: {
+                name: ['the event'],
+              },
+            },
+            {
+              type: ['h-entry'],
+              properties: {
+                name: ['the entry'],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const feed = await interpret_feed(doc, 'https://source.url', null, null, false, null);
+    expect(feed?.name).toBe('this is a feed');
+    expect(feed?.entries?.length).toBe(2);
+    expect(feed?.entries?.[0].type).toBe('event');
+    expect(feed?.entries?.[0].name).toBe('the event');
+    expect(feed?.entries?.[1].type).toBe('entry');
+    expect(feed?.entries?.[1].name).toBe('the entry');
+  });
+
+  it('should produce a top level collection', async () => {
+    const doc: ParsedDocument = {
+      rels: {
+        author: ['https://author_page'],
+      },
+      'rel-urls': {},
+      items: [
+        {
+          type: ['h-event'],
+          properties: {
+            name: ['the event'],
+          },
+        },
+        {
+          type: ['h-entry'],
+          properties: {
+            name: ['the entry'],
+          },
+        },
+      ],
+    };
+    const feed = await interpret_feed(doc, 'https://source.url', null, null, false, null);
+    expect(feed?.entries?.length).toBe(2);
+    expect(feed?.entries?.[0].type).toBe('event');
+    expect(feed?.entries?.[0].name).toBe('the event');
+    expect(feed?.entries?.[1].type).toBe('entry');
+    expect(feed?.entries?.[1].name).toBe('the entry');
   });
 });

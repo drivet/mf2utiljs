@@ -760,7 +760,7 @@ export async function interpret_cite(
 }
 
 /**
- * Interpret a source page as an h-feed or as an top-level collection
+ * Interpret a source page as an h-feed or as a top-level collection
  * of h-entries
  * @param dict parsed: the result of parsing a mf2 document
  * @param str source_url: the URL of the source document (used for authorship discovery)
