@@ -13,29 +13,24 @@ import { isUri } from 'valid-url';
 
 import {
   AuthorInfo,
-  ObjectWithStringValue,
   ParsedDocumentFetchFn,
-  PlainText,
+  PartialPost,
   PostType,
-  SimplifiedBoth,
-  SimplifiedCommon,
+  SimplifiedCite,
   SimplifiedEntry,
   SimplifiedEvent,
   SimplifiedFeed,
+  SimplifiedPost,
 } from './mf2-models';
 
 import urljoin = require('url-join');
-
-function is_obj(val: unknown) {
-  return typeof val === 'object' && !Array.isArray(val) && val !== null && val !== undefined;
-}
 
 function is_microformat_root(p: MicroformatProperty | string): p is MicroformatRoot {
   return (p as MicroformatRoot).properties !== undefined;
 }
 
 function is_html(p: MicroformatProperty): p is Html {
-  return (p as Html).html !== undefined;
+  return p !== undefined && (p as Html).html !== undefined;
 }
 
 /**
@@ -114,15 +109,21 @@ function* find_all_entries_gen(
  * @param {boolean} strip true if we should strip the plaintext value
  * @return {string} the text value or null
  */
-function get_plain_text(values: PlainText[], strip = false): string | null {
+function get_plain_text(values: MicroformatProperty[], strip = false): string | null {
   if (_.size(values) === 0) {
     return null;
   }
 
-  const v = is_obj(values[0])
-    ? (values[0] as ObjectWithStringValue).value || ''
-    : (values[0] as string);
-  return strip ? v.trim() : v;
+  const value = values[0];
+  let v: string | null;
+  if (is_microformat_root(value) && typeof value.value === 'string') {
+    v = value.value;
+  } else if (typeof value === 'string') {
+    v = value;
+  } else {
+    v = null;
+  }
+  return v && strip ? v.trim() : v;
 }
 
 /**
@@ -242,8 +243,8 @@ export async function find_author(
     // 7.2 if author-page has 1+ h-card with url == uid ==
     //     author-page's URL, then use first such h-card, exit.
     for (const hcard of hcards) {
-      const hcard_url = get_plain_text(hcard.properties.url as PlainText[]);
-      const hcard_uid = get_plain_text(hcard.properties.uid as PlainText[]);
+      const hcard_url = get_plain_text(hcard.properties.url);
+      const hcard_uid = get_plain_text(hcard.properties.uid);
       if (hcard_url && hcard_uid && hcard_url == hcard_uid && hcard_url == author_page) {
         return parse_author(hcard);
       }
@@ -255,7 +256,7 @@ export async function find_author(
     //     required to be), use first such h-card, exit.
     const rel_mes = (parsed.rels || {}).me || [];
     for (const hcard of hcards) {
-      const hcard_url = get_plain_text(hcard.properties.url as PlainText[]);
+      const hcard_url = get_plain_text(hcard.properties.url);
       if (hcard_url && rel_mes.includes(hcard_url)) {
         return parse_author(hcard);
       }
@@ -264,7 +265,7 @@ export async function find_author(
     // 7.4 if the h-entry's page has 1+ h-card with url ==
     //     author-page URL, use first such h-card, exit.
     for (const hcard of hcards) {
-      const hcard_url = get_plain_text(hcard.properties.url as PlainText[]);
+      const hcard_url = get_plain_text(hcard.properties.url);
       if (hcard_url && hcard_url === author_page) {
         return parse_author(hcard);
       }
@@ -367,7 +368,7 @@ function is_name_a_title(
 }
 
 function is_prop_uri(props: MicroformatProperties, name: string): string | undefined {
-  const value = get_plain_text(props[name] as PlainText[]);
+  const value = get_plain_text(props[name]);
   return value ? isUri(value) : undefined;
 }
 
@@ -419,9 +420,8 @@ export function post_type_discovery(item: MicroformatRoot): string {
     }
   }
 
-  const name = get_plain_text(props.name as PlainText[]);
-  const content =
-    get_plain_text(props.content as PlainText[]) || get_plain_text(props.summary as PlainText[]);
+  const name = get_plain_text(props.name);
+  const content = get_plain_text(props.content) || get_plain_text(props.summary);
 
   if (content && name && is_name_a_title(name, content)) {
     return 'article';
@@ -465,7 +465,7 @@ export function convert_relative_paths_to_absolute(
   source_url: string,
   base_href: string | null,
   html: string
-) {
+): string {
   function convert(match: string, p1: string, p2: string, p3: string): string {
     const base_url = base_href ? urljoin(source_url, base_href) : source_url;
     const absurl = urljoin(base_url, p2);
@@ -482,7 +482,7 @@ export function convert_relative_paths_to_absolute(
     source: ['src'],
   };
 
-  if (source_url) {
+  if (source_url && html) {
     for (const [tagname, attributes] of Object.entries(URL_ATTRIBUTES)) {
       for (const attribute of attributes) {
         const re = new RegExp(`(<${tagname}[^>]*?${attribute}\\s*=\\s*['"])(.*?)(['"])`, 'imsg');
@@ -491,97 +491,6 @@ export function convert_relative_paths_to_absolute(
     }
   }
   return html;
-}
-
-async function interpret_common_properties(
-  parsed: ParsedDocument,
-  source_url: string,
-  base_href: string | null,
-  hentry: MicroformatRoot,
-  use_rel_syndication: boolean,
-  fetch_mf2_func: ParsedDocumentFetchFn | null
-): Promise<SimplifiedCommon> {
-  const result: SimplifiedCommon = {};
-  const props = hentry.properties;
-
-  for (const prop of ['url', 'uid', 'photo', 'featured', 'logo']) {
-    const value = get_plain_text(props[prop] as PlainText[]);
-    if (value) {
-      result[prop] = value;
-    }
-  }
-  for (const prop in ['start', 'end', 'published', 'updated', 'deleted']) {
-    const date_str = get_plain_text(props[prop] as PlainText[]);
-    if (date_str) {
-      result[prop] = date_str;
-    }
-  }
-  const author = await find_author(parsed, hentry, fetch_mf2_func);
-  if (author) {
-    result.author = author;
-  }
-
-  const content_prop = props.content;
-  if (content_prop) {
-    let content_html: string | MicroformatProperty;
-    let content_value: string | MicroformatProperty;
-    if (is_html(content_prop[0])) {
-      content_html = (content_prop[0].html || '').trim();
-      content_value = (content_prop[0].value || '').trim();
-    } else {
-      content_value = content_html = content_prop[0];
-    }
-    result.content = convert_relative_paths_to_absolute(
-      source_url,
-      base_href,
-      content_html as string
-    );
-    result['content-plain'] = content_value as string;
-  }
-
-  const summary_prop = props.summary;
-  if (summary_prop) {
-    result.summary = is_html(summary_prop[0]) ? summary_prop[0].value : (summary_prop[0] as string);
-  }
-
-  // TODO: set up location info
-
-  if (use_rel_syndication) {
-    const rel_syndications = (parsed.rels || {}).syndication || [];
-    const hentry_syndications = hentry.properties.syndication || [];
-    result.syndication = [...new Set([...rel_syndications, ...hentry_syndications])] as string[];
-  } else {
-    result.syndication = (hentry.properties.syndication || []) as string[];
-  }
-  return result;
-}
-
-export async function interpret_event(
-  parsed: ParsedDocument,
-  source_url: string,
-  base_href: string | null,
-  hentry: MicroformatRoot | null,
-  use_rel_syndication: boolean,
-  fetch_mf2_func: ParsedDocumentFetchFn | null
-): Promise<SimplifiedEvent | null> {
-  hentry = hentry || find_first_entry(parsed, ['h-entry']);
-  if (!hentry) {
-    return null;
-  }
-  const result: SimplifiedEvent = (await interpret_common_properties(
-    parsed,
-    source_url,
-    base_href,
-    hentry,
-    use_rel_syndication,
-    fetch_mf2_func
-  )) as SimplifiedEvent;
-  result.type = 'event';
-  const name_val = get_plain_text(hentry.properties.name as PlainText[]);
-  if (name_val) {
-    result.name = name_val;
-  }
-  return result;
 }
 
 /**
@@ -609,8 +518,8 @@ async function interpret(
   hentry: MicroformatRoot | null,
   use_rel_syndication = true,
   fetch_mf2_func: ParsedDocumentFetchFn | null
-): Promise<SimplifiedEvent | SimplifiedEntry | null> {
-  hentry = hentry || find_first_entry(parsed, ['h-entry', 'h-event']);
+): Promise<SimplifiedEvent | SimplifiedEntry | SimplifiedCite | null> {
+  hentry = hentry || find_first_entry(parsed, ['h-entry', 'h-event', 'h-cite']);
   if (hentry) {
     const types = hentry.type || [];
     if (_.includes(types, 'h-event')) {
@@ -622,8 +531,17 @@ async function interpret(
         use_rel_syndication,
         fetch_mf2_func
       );
-    } else if (_.includes(types, 'h-entry') || _.includes(types, 'h-cite')) {
+    } else if (_.includes(types, 'h-entry')) {
       return interpret_entry(
+        parsed,
+        source_url,
+        base_href,
+        hentry,
+        use_rel_syndication,
+        fetch_mf2_func
+      );
+    } else if (_.includes(types, 'h-cite')) {
+      return interpret_cite(
         parsed,
         source_url,
         base_href,
@@ -634,6 +552,102 @@ async function interpret(
     }
   }
   return null;
+}
+
+export async function interpret_common_properties(
+  parsed: ParsedDocument,
+  source_url: string,
+  base_href: string | null,
+  hentry: MicroformatRoot,
+  use_rel_syndication: boolean,
+  fetch_mf2_func: ParsedDocumentFetchFn | null
+): Promise<PartialPost> {
+  const result: PartialPost = {};
+  const props = hentry.properties;
+
+  for (const prop of ['url', 'uid', 'photo', 'featured']) {
+    const value = get_plain_text(props[prop]);
+    if (value) {
+      result[prop] = value;
+    }
+  }
+  for (const prop of ['start', 'end', 'published', 'updated', 'deleted']) {
+    const date_str = get_plain_text(props[prop]);
+    if (date_str) {
+      result[prop] = date_str;
+    }
+  }
+  const author = await find_author(parsed, hentry, fetch_mf2_func);
+  if (author) {
+    result.author = author;
+  }
+
+  const content_props = props.content;
+  if (content_props) {
+    const content_prop = content_props[0];
+    let content_html: string | MicroformatProperty;
+    let content_value: string | MicroformatProperty;
+    if (is_html(content_prop)) {
+      content_html = (content_prop.html || '').trim();
+      content_value = (content_prop.value || '').trim();
+    } else {
+      content_value = content_html = content_prop;
+    }
+    result.content = convert_relative_paths_to_absolute(
+      source_url,
+      base_href,
+      content_html as string
+    );
+    result['content-plain'] = content_value as string;
+  }
+
+  const summary_prop = props.summary;
+  if (summary_prop) {
+    result.summary = is_html(summary_prop[0]) ? summary_prop[0].value : (summary_prop[0] as string);
+  }
+
+  // TODO: set up location info
+
+  let syndication: string[] = [];
+  if (use_rel_syndication) {
+    const rel_syndications = (parsed.rels || {}).syndication || [];
+    const hentry_syndications = hentry.properties.syndication || [];
+    syndication = [...new Set([...rel_syndications, ...hentry_syndications])] as string[];
+  } else {
+    syndication = (hentry.properties.syndication || []) as string[];
+  }
+  if (_.size(syndication) > 0) {
+    result.syndication = syndication;
+  }
+  return result;
+}
+
+export async function interpret_event(
+  parsed: ParsedDocument,
+  source_url: string,
+  base_href: string | null,
+  hentry: MicroformatRoot | null,
+  use_rel_syndication: boolean,
+  fetch_mf2_func: ParsedDocumentFetchFn | null
+): Promise<SimplifiedEvent | null> {
+  hentry = hentry || find_first_entry(parsed, ['h-event']);
+  if (!hentry) {
+    return null;
+  }
+  const result: SimplifiedEvent = (await interpret_common_properties(
+    parsed,
+    source_url,
+    base_href,
+    hentry,
+    use_rel_syndication,
+    fetch_mf2_func
+  )) as SimplifiedEvent;
+  result.type = 'event';
+  const name_val = get_plain_text(hentry.properties.name);
+  if (name_val) {
+    result.name = name_val;
+  }
+  return result;
 }
 
 /**
@@ -690,34 +704,57 @@ export async function interpret_entry(
     use_rel_syndication,
     fetch_mf2_func
   )) as SimplifiedEntry;
-  if (_.includes(hentry.type || [], 'h-cite')) {
-    result.type = 'cite';
-  } else {
-    result.type = 'entry';
-  }
-  const title = get_plain_text(hentry.properties.name as PlainText[]);
+  result.type = 'entry';
+  const title = get_plain_text(hentry.properties.name);
   if (title && is_name_a_title(title, result['content-plain'])) {
     result.name = title;
   }
-  for (const prop of [
-    'in-reply-to',
-    'like-of',
-    'repost-of',
-    'bookmark-of',
-    'comment',
-    'like',
-    'repost',
-  ]) {
+  for (const prop of ['in-reply-to', 'like-of', 'repost-of', 'bookmark-of']) {
     for (const url_val of hentry.properties[prop] || []) {
+      result[prop] = result[prop] || [];
       if (is_microformat_root(url_val)) {
-        result[prop] = result[prop] || [];
         result[prop].push(
-          interpret(parsed, source_url, base_href, hentry, use_rel_syndication, fetch_mf2_func)
+          await interpret(
+            parsed,
+            source_url,
+            base_href,
+            url_val,
+            use_rel_syndication,
+            fetch_mf2_func
+          )
         );
       } else {
         result[prop].push({ url: url_val });
       }
     }
+  }
+  return result;
+}
+
+export async function interpret_cite(
+  parsed: ParsedDocument,
+  source_url: string,
+  base_href: string | null = null,
+  hentry: MicroformatRoot | null = null,
+  use_rel_syndication = true,
+  fetch_mf2_func: ParsedDocumentFetchFn | null = null
+): Promise<SimplifiedCite | null> {
+  hentry = hentry || find_first_entry(parsed, ['h-cite']);
+  if (!hentry) {
+    return null;
+  }
+  const result: SimplifiedCite = (await interpret_common_properties(
+    parsed,
+    source_url,
+    base_href,
+    hentry,
+    use_rel_syndication,
+    fetch_mf2_func
+  )) as SimplifiedCite;
+  result.type = 'cite';
+  const title = get_plain_text(hentry.properties.name);
+  if (title && is_name_a_title(title, result['content-plain'])) {
+    result.name = title;
   }
   return result;
 }
@@ -757,7 +794,7 @@ export async function interpret_feed(
   } else {
     children = parsed.items || [];
   }
-  const entries: SimplifiedBoth[] = [];
+  const entries: SimplifiedPost[] = [];
   for (const child of children) {
     const entry = await interpret(
       parsed,

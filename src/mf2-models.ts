@@ -1,6 +1,6 @@
 import { ParsedDocument } from 'microformats-parser/dist/types';
 
-export type PostType = 'h-entry' | 'h-event' | 'h-feed' | 'h-card';
+export type PostType = 'h-entry' | 'h-event' | 'h-cite' | 'h-feed' | 'h-card';
 
 export interface ObjectWithStringValue {
   value: string;
@@ -16,43 +16,67 @@ export interface AuthorInfo {
 
 export type ParsedDocumentFetchFn = (url: string) => Promise<ParsedDocument>;
 
-export interface SimplifiedCommon {
+export interface PartialPost {
   url?: string;
   uid?: string;
+  author?: AuthorInfo;
   photo?: string;
   featured?: string;
-  logo?: string;
   start?: string;
   end?: string;
   published?: string;
   updated?: string;
   deleted?: string;
-  author?: AuthorInfo;
   content?: string;
   'content-plain'?: string;
   summary?: string;
   syndication?: string[];
 }
 
-export interface SimplifiedEvent extends SimplifiedCommon {
+export interface SimplifiedEvent {
   type: 'event';
   name?: string;
+  summary?: string;
+  start?: string;
+  end?: string;
+  url?: string;
 }
 
-export type SimplifiedBoth = SimplifiedEvent | SimplifiedEntry;
-export interface SimplifiedEntry extends SimplifiedCommon {
+export interface SimplifiedEntry {
   type: 'entry' | 'cite';
   name?: string;
-  'in-reply-to'?: SimplifiedBoth[];
-  'like-of'?: SimplifiedBoth[];
-  'repost-of'?: SimplifiedBoth[];
-  'bookmark-of'?: SimplifiedBoth[];
-  comment?: SimplifiedBoth[];
-  like?: SimplifiedBoth[];
-  repost?: SimplifiedBoth[];
+  url?: string;
+  uid?: string;
+  author?: AuthorInfo;
+  content?: string;
+  'content-plain'?: string;
+  summary?: string;
+  syndication?: string[];
+  photo?: string;
+  featured?: string;
+  logo?: string;
+  published?: string;
+  updated?: string;
+  deleted?: string;
+  'in-reply-to'?: SimplifiedPost[];
+  'like-of'?: SimplifiedPost[];
+  'repost-of'?: SimplifiedPost[];
+  'bookmark-of'?: SimplifiedPost[];
 }
+
+export interface SimplifiedCite {
+  type: 'cite';
+  name?: string;
+  author?: AuthorInfo;
+  url?: string;
+  uid?: string;
+  content?: string;
+  'content-plain'?: string;
+}
+
+export type SimplifiedPost = SimplifiedEvent | SimplifiedEntry | SimplfiedCite;
 
 export interface SimplifiedFeed {
   name?: string;
-  entries?: SimplifiedBoth[];
+  entries?: SimplifiedPost[];
 }
