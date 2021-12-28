@@ -88,7 +88,10 @@ function* find_all_entries_gen(
 ): Generator<MicroformatRoot> {
   const queue: MicroformatRoot[] = [...parsed.items];
   while (queue.length > 0) {
-    const item: MicroformatRoot = queue.shift()!;
+    const item = queue.shift();
+    if (!item) {
+      throw new Error('item is undefined');
+    }
     const item_types = item.type || [];
     if (types.some((h_class) => _.includes(item_types, h_class))) {
       yield item;
