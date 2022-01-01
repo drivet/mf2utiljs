@@ -562,7 +562,7 @@ describe('authorship tests (no fetching)', () => {
         },
       ],
     };
-    const author = await find_author(doc);
+    const author = await find_author(doc, null, null);
     if (!author) {
       throw new Error('unexpected null author');
     }
@@ -591,7 +591,7 @@ describe('authorship tests (no fetching)', () => {
         },
       ],
     };
-    const author = await find_author(doc);
+    const author = await find_author(doc, null, null);
     if (!author) {
       throw new Error('unexpected null author');
     }
@@ -611,7 +611,7 @@ describe('authorship tests (no fetching)', () => {
         },
       ],
     };
-    const author = await find_author(doc);
+    const author = await find_author(doc, null, null);
     if (!author) {
       throw new Error('unexpected null author');
     }
@@ -631,7 +631,7 @@ describe('authorship tests (no fetching)', () => {
         },
       ],
     };
-    const author = await find_author(doc);
+    const author = await find_author(doc, null, null);
     if (!author) {
       throw new Error('unexpected null author');
     }
@@ -666,7 +666,7 @@ describe('authorship tests (no fetching)', () => {
         },
       ],
     };
-    const author = await find_author(doc);
+    const author = await find_author(doc, null, null);
     if (!author) {
       throw new Error('unexpected null author');
     }
@@ -688,7 +688,7 @@ describe('authorship tests (no fetching)', () => {
         },
       ],
     };
-    const author = await find_author(doc);
+    const author = await find_author(doc, null, null);
     if (!author) {
       throw new Error('unexpected null author');
     }
@@ -706,7 +706,7 @@ describe('authorship tests (no fetching)', () => {
         },
       ],
     };
-    const author = await find_author(doc);
+    const author = await find_author(doc, null, null);
     expect(author).toBeFalsy();
   });
 });

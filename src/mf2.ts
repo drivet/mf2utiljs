@@ -53,9 +53,9 @@ export async function parse_mf2(url: string): Promise<ParsedDocument> {
 /**
  * Find the first interesting h-* object in BFS-order
  *
- * @param {Object} parsed an mf2 parsed object
- * @param {string[]} types array of types to look for
- * @return {Object} first h-* types that matches one of the array types
+ * @param parsed an mf2 parsed object
+ * @param types array of types to look for
+ * @return first h-* types that matches one of the array types
  *
  */
 export function find_first_entry(parsed: ParsedDocument, types: PostType[]): MicroformatRoot {
@@ -68,10 +68,10 @@ export function find_first_entry(parsed: ParsedDocument, types: PostType[]): Mic
  * values (e.g. finding all h-cards would not find values of
  * "p-author h-card") only if `include_properties` is True.
 
- * @param {Object} parsed an mf2 parsed object
- * @param {string[]} types array of types to look for
- * @param {boolean} include_properties if true we look at properties as well
- * @returns {Object[]} all matching objects
+ * @param parsed an mf2 parsed object
+ * @param types array of types to look for
+ * @param include_properties if true we look at properties as well
+ * @returns all matching objects
  */
 export function find_all_entries(
   parsed: ParsedDocument,
@@ -108,9 +108,9 @@ function* find_all_entries_gen(
  * Get the first value in a list of values that we expect to be plain-text.
  * If it is an object, then return the value of "value".
  *
- * @param {Array} values a list of values
- * @param {boolean} strip true if we should strip the plaintext value
- * @return {string} the text value or null
+ * @param values a list of values
+ * @param strip true if we should strip the plaintext value
+ * @return the text value or null
  */
 function get_plain_text(values: MicroformatProperty[], strip = false): string | null {
   if (_.size(values) === 0) {
@@ -133,8 +133,8 @@ function get_plain_text(values: MicroformatProperty[], strip = false): string | 
  * Parse the value of a u-author property, can either be a compound
  * h-card or a single name or url.
  * 
- * @param {Object} obj the mf2 property value, either an object or a string
-   @return {Object} an object containing the author's name, photo, and url
+ * @param obj the mf2 property value, either an object or a string
+   @return an object containing the author's name, photo, and url
  */
 function parse_author(obj: string | MicroformatRoot): AuthorInfo {
   const result: AuthorInfo = {};
@@ -168,9 +168,9 @@ function parse_author(obj: string | MicroformatRoot): AuthorInfo {
  * https://indiewebcamp.com/authorship to determine an h-entry's
  * author.
  *
- * @param {Object} parsed an mf2 parsed object
- * @param {Object} hentry optional, the h-netry we're examining, if omitted we'll just use the first one
- * @param {Boolean} fetch_author if true we will follow author page URLs
+ * @param parsed an mf2 parsed object
+ * @param hentry optional, the h-netry we're examining, if omitted we'll just use the first one
+ * @param fetch_author if true we will follow author page URLs
  * @return a promise for an object containing author's name, photo, url
  */
 export async function find_author(
@@ -285,9 +285,9 @@ export async function find_author(
  * Find the representative h-card for a URL
  * http://microformats.org/wiki/representative-h-card-parsing
 
- * @param {Object} parsed
- * @param {string} source_url
- * @return {Object} the representative h-card if one is found
+ * @param parsed
+ * @param source_url
+ * @return the representative h-card if one is found
  */
 export function representative_hcard(
   parsed: ParsedDocument,
@@ -342,9 +342,9 @@ export function representative_hcard(
  * content is a subset of name. We also strip out non-alphanumeric
  * characters just to make the check a little more forgiving.
  *
- * @param str name: the p-name property that may represent a title
- * @param str content: the plain-text version of an e-content property
- * @return: True if the name likely represents a separate, explicit title
+ * @param name the p-name property that may represent a title
+ * @param content the plain-text version of an e-content property
+ * @return true if the name likely represents a separate, explicit title
  *
  */
 function is_name_a_title(
@@ -390,8 +390,8 @@ function is_rsvp(item: MicroformatRoot): boolean {
  * Implementation of the post-type discovery algorithm
  * defined here https://indiewebcamp.com/post-type-discovery#Algorithm
  *
- * @param dict hentry: mf2 item representing the entry to test
- * @return string, one of: 'event', 'rsvp',
+ * @param hentry mf2 item representing the entry to test
+ * @return one of: 'event', 'rsvp',
  * 'reply', 'repost', 'like', 'photo','article', 'note', 'follow'
  *
  * TODO add invite, follow-of
@@ -438,7 +438,7 @@ export function post_type_discovery(item: MicroformatRoot): string {
  * defined here https://www.w3.org/TR/post-type-discovery/
  *
  * @param mf2 item representing the entry to test
- * @return string, one of: 'rsvp','reply', 'repost', 'like', 'mention'
+ * @return one of: 'rsvp','reply', 'repost', 'like', 'mention'
  */
 export function response_type_discovery(item: MicroformatRoot): string {
   if (is_rsvp(item)) {
@@ -501,26 +501,26 @@ export function convert_relative_paths_to_absolute(
  * h-* element, and delegates to :func:`interpret_entry` if it is an
  * h-entry or :func:`interpret_event` for an h-event
  *
- * @param parsed: the result of parsing a mf2 document
- * @param str source_url: the URL of the source document (used for authorship discovery)
- * @param str base_href: (optional) the href value of the base tag
- * @param dict item: (optional) the item to be parsed. If provided,
+ * @param parsed the result of parsing a mf2 document
+ * @param source_url the URL of the source document (used for authorship discovery)
+ * @param base_href (optional) the href value of the base tag
+ * @param item (optional) the item to be parsed. If provided,
  * this will be used instead of the first element on the page.
- * @param boolean use_rel_syndication: (optional, default True) Whether
+ * @param use_rel_syndication (optional, default True) Whether
  * to include rel=syndication in the list of syndication sources. Sometimes
  * useful to set this to False when parsing h-feeds that erroneously include
  * rel=syndication on each entry.
- * @param callable fetch_mf2_func: (optional) function to fetch mf2 parsed
+ * @param fetch_mf2_func: (optional) function to fetch mf2 parsed
  * output for a given URL.
- * @return: a dict as described by interpret_entry or interpret_event, or None
+ * @return an object as described by interpret_entry or interpret_event, or None
  **/
 async function interpret(
   parsed: ParsedDocument,
   source_url: string,
-  base_href: string | null,
-  hentry: MicroformatRoot | null,
+  base_href: string | null = null,
+  hentry: MicroformatRoot | null = null,
   use_rel_syndication = true,
-  fetch_mf2_func: ParsedDocumentFetchFn | null
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
 ): Promise<SimplifiedEvent | SimplifiedEntry | SimplifiedCite | null> {
   hentry = hentry || find_first_entry(parsed, ['h-entry', 'h-event', 'h-cite']);
   if (hentry) {
@@ -628,10 +628,10 @@ export async function interpret_common_properties(
 export async function interpret_event(
   parsed: ParsedDocument,
   source_url: string,
-  base_href: string | null,
-  hentry: MicroformatRoot | null,
-  use_rel_syndication: boolean,
-  fetch_mf2_func: ParsedDocumentFetchFn | null
+  base_href: string | null = null,
+  hentry: MicroformatRoot | null = null,
+  use_rel_syndication = true,
+  fetch_mf2_func: ParsedDocumentFetchFn | null = null
 ): Promise<SimplifiedEvent | null> {
   hentry = hentry || find_first_entry(parsed, ['h-event']);
   if (!hentry) {
@@ -675,17 +675,17 @@ export async function interpret_event(
  * 'like-of': [...],
  * 'repost-of': [...],
  * }
- * @param dict parsed: the result of parsing a document containing mf2 markup
- * @param str source_url: the URL of the parsed document, used by the authorship algorithm
- * @param str base_href: (optional) the href value of the base tag
- * @param dict hentry: (optional) the item in the above document representing the h-entry. if
+ * @param parsed the result of parsing a document containing mf2 markup
+ * @param source_url the URL of the parsed document, used by the authorship algorithm
+ * @param base_href (optional) the href value of the base tag
+ * @param hentry (optional) the item in the above document representing the h-entry. if
  * provided, we can avoid a redundant call to find_first_entry
- * @param boolean use_rel_syndication: (optional, default True) Whether to
+ * @param use_rel_syndication: (optional, default True) Whether to
  * include rel=syndication in the list of syndication sources. Sometimes
  * useful to set this to False when parsing h-feeds that erroneously include
  * rel=syndication on each entry.
- * @param callable fetch_mf2_func: (optional) function to fetch mf2 parsed output for a given URL.
- * @return: a dict with some or all of the described properties
+ * @param fetch_mf2_func: (optional) function to fetch mf2 parsed output for a given URL.
+ * @return an object with some or all of the described properties
  **/
 export async function interpret_entry(
   parsed: ParsedDocument,
@@ -765,13 +765,13 @@ export async function interpret_cite(
 /**
  * Interpret a source page as an h-feed or as a top-level collection
  * of h-entries
- * @param dict parsed: the result of parsing a mf2 document
- * @param str source_url: the URL of the source document (used for authorship discovery)
- * @param str base_href: (optional) the href value of the base tag
- * @param dict hfedd: (optional) the h-feed to be parsed. If provided,
+ * @param parsed the result of parsing a mf2 document
+ * @param source_url the URL of the source document (used for authorship discovery)
+ * @param base_href (optional) the href value of the base tag
+ * @param hfeed (optional) the h-feed to be parsed. If provided,
  * this will be used instead of the first h-feed on the page.
- * @param callable fetch_mf2_func: (optional) function to fetch mf2 parsed output for a given URL.
- * @return: a dict containing 'entries', a list of entries, and possibly other
+ * @param fetch_mf2_func (optional) function to fetch mf2 parsed output for a given URL.
+ * @return an object containing 'entries', a list of entries, and possibly other
  * feed properties (like 'name').
  *
  */
@@ -781,7 +781,7 @@ export async function interpret_feed(
   base_href: string | null = null,
   hfeed: MicroformatRoot | null = null,
   use_rel_syndication = true,
-  fetch_mf2_func: ParsedDocumentFetchFn | null = null
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
 ): Promise<SimplifiedFeed> {
   hfeed = hfeed || find_first_entry(parsed, ['h-feed']);
 
