@@ -1,4 +1,3 @@
-import axios from 'axios';
 import * as _ from 'lodash';
 import { mf2 } from 'microformats-parser';
 import {
@@ -8,6 +7,7 @@ import {
   MicroformatRoot,
   ParsedDocument,
 } from 'microformats-parser/dist/types';
+import fetch from 'node-fetch';
 import { URL } from 'url';
 import { isUri } from 'valid-url';
 
@@ -44,8 +44,8 @@ export async function parse_mf2(url: string): Promise<ParsedDocument> {
     const urlObj = new URL(url);
     return `${urlObj.protocol}//${urlObj.hostname}`;
   }
-  const response = await axios.get(url);
-  const page: string = await response.data;
+  const response = await fetch(url);
+  const page: string = await response.text();
   const baseUrl = get_base_url(url);
   return mf2(page, { baseUrl });
 }
@@ -175,8 +175,8 @@ function parse_author(obj: string | MicroformatRoot): AuthorInfo {
  */
 export async function find_author(
   parsed: ParsedDocument,
-  hentry: MicroformatRoot | null = null,
-  fetch_mf2_func: ParsedDocumentFetchFn | null = null
+  hentry: MicroformatRoot | null,
+  fetch_mf2_func: ParsedDocumentFetchFn | null
 ): Promise<AuthorInfo | null> {
   function find_hentry_author(hentry: MicroformatRoot) {
     const vals = hentry.properties.author || [];
