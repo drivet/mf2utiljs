@@ -206,7 +206,6 @@ export async function find_author(
   // 4. otherwise if the h-entry has a parent h-feed with author property,
   //    use that
   const author = find_hentry_author(hentry) || find_parent_hfeed_author(hentry);
-
   let author_page;
   if (author) {
     // 5.2 otherwise if author property is an http(s) URL, let the
@@ -231,7 +230,6 @@ export async function find_author(
       author_page = rel_authors[0];
     }
   }
-
   if (author_page) {
     if (!fetch_mf2_func) {
       return {
@@ -464,6 +462,50 @@ export function response_type_discovery(item: MicroformatRoot): string {
   return 'mention';
 }
 
+export function normalize_dt(s: string): string | null {
+  if (!s) {
+    return null;
+  }
+  s = s.replace('\\s+', s);
+  const date_re = '(?<year>\\d{4,})-(?<month>\\d{1,2})-(?<day>\\d{1,2})';
+  const time_re =
+    '(?<hour>\\d{1,2}):(?<minute>\\d{2})(:(?<second>\\d{2})(.(?<microsecond>\\d+))?)?';
+  const tz_re = '(?<tzz>Z)|(?<tzsign>[+-])(?<tzhour>\\d{1,2}):?(?<tzminute>\\d{2})';
+  const dt_re = `${date_re}((T| )${time_re} ?(${tz_re})?)?( .{3})?$`;
+  const m = s.match(dt_re);
+  if (!m || m.length === 0) {
+    throw new Error(`unrecognized date format ${s}`);
+  }
+  if (!m.groups) {
+    throw new Error(`match should return groups`);
+  }
+  const year = m.groups.year.padStart(2, '0');
+  const month = m.groups.month.padStart(2, '0');
+  const day = m.groups.day.padStart(2, '0');
+  let hour = m.groups.hour;
+  if (hour === undefined) {
+    return `${year}-${month}-${day}`;
+  }
+  hour = hour.padStart(2, '0');
+  const minute = m.groups.minute !== undefined ? m.groups.minute.padStart(2, '0') : '00';
+  const second = m.groups.second !== undefined ? m.groups.second.padStart(2, '0') : '00';
+
+  const date_str = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+
+  if (m.groups.tzz) {
+    return `${date_str}Z`;
+  } else {
+    const tzsign = m.groups.tzsign;
+    let tzhour = m.groups.tzhour;
+    if (tzsign !== undefined && tzhour !== undefined) {
+      tzhour = tzhour.padStart(2, '0');
+      const tzminute = m.groups.tzminute !== undefined ? m.groups.tzminute.padStart(2, '0') : '00';
+      return `${date_str}${tzsign}${tzhour}:${tzminute}`;
+    }
+  }
+  return date_str;
+}
+
 export function convert_relative_paths_to_absolute(
   source_url: string,
   base_href: string | null,
@@ -577,7 +619,12 @@ export async function interpret_common_properties(
   for (const prop of ['start', 'end', 'published', 'updated', 'deleted']) {
     const date_str = get_plain_text(props[prop]);
     if (date_str) {
-      result[prop] = date_str;
+      result[prop + '-str'] = date_str;
+      try {
+        result[prop] = normalize_dt(date_str);
+      } catch (e) {
+        result[prop] = null;
+      }
     }
   }
   const author = await find_author(parsed, hentry, fetch_mf2_func);
@@ -631,7 +678,7 @@ export async function interpret_event(
   base_href: string | null = null,
   hentry: MicroformatRoot | null = null,
   use_rel_syndication = true,
-  fetch_mf2_func: ParsedDocumentFetchFn | null = null
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
 ): Promise<SimplifiedEvent | null> {
   hentry = hentry || find_first_entry(parsed, ['h-event']);
   if (!hentry) {
@@ -693,7 +740,7 @@ export async function interpret_entry(
   base_href: string | null = null,
   hentry: MicroformatRoot | null = null,
   use_rel_syndication = true,
-  fetch_mf2_func: ParsedDocumentFetchFn | null = null
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
 ): Promise<SimplifiedEntry | null> {
   hentry = hentry || find_first_entry(parsed, ['h-entry']);
   if (!hentry) {
@@ -740,7 +787,7 @@ export async function interpret_cite(
   base_href: string | null = null,
   hentry: MicroformatRoot | null = null,
   use_rel_syndication = true,
-  fetch_mf2_func: ParsedDocumentFetchFn | null = null
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
 ): Promise<SimplifiedCite | null> {
   hentry = hentry || find_first_entry(parsed, ['h-cite']);
   if (!hentry) {

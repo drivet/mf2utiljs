@@ -1,5 +1,6 @@
 import { MicroformatRoot, ParsedDocument } from 'microformats-parser/dist/types';
 
+import { normalize_dt, parse_mf2 } from '.';
 import {
   convert_relative_paths_to_absolute,
   find_all_entries,
@@ -1566,5 +1567,23 @@ describe('interpret feed tests', () => {
     expect(feed?.entries?.[0].name).toBe('the event');
     expect(feed?.entries?.[1].type).toBe('entry');
     expect(feed?.entries?.[1].name).toBe('the entry');
+  });
+});
+
+describe('datetime tests', () => {
+  it('should normalize standard dates', () => {
+    expect(normalize_dt('2021-03-02T13:45:00+04:00')).toBe('2021-03-02T13:45:00+04:00');
+    expect(normalize_dt('2021-3-2T13:45:00+04:00')).toBe('2021-03-02T13:45:00+04:00');
+  });
+
+  it('should normalize friendlier dates', () => {
+    expect(normalize_dt('2021-03-02 13:45:00 +04:00')).toBe('2021-03-02T13:45:00+04:00');
+    expect(normalize_dt('2021-08-01 13:42:17 +0100')).toBe('2021-08-01T13:42:17+01:00');
+    expect(normalize_dt('2021-08-01 13:42:17 +0100 BST')).toBe('2021-08-01T13:42:17+01:00');
+  });
+
+  it('should normalize dates', () => {
+    expect(normalize_dt('2021-03-02')).toBe('2021-03-02');
+    expect(normalize_dt('2021-3-2')).toBe('2021-03-02');
   });
 });
