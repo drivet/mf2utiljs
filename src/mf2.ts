@@ -239,7 +239,7 @@ export async function find_author(
 
     // 7.1 get the author-page from that URL and parse it for microformats2
     parsed = await fetch_mf2_func(author_page);
-    const hcards = find_all_entries(parsed, ['h-card']);
+    const hcards = find_all_entries(parsed, ['h-card'], true);
 
     // 7.2 if author-page has 1+ h-card with url == uid ==
     //     author-page's URL, then use first such h-card, exit.
