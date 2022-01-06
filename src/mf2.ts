@@ -13,6 +13,7 @@ import { isUri } from 'valid-url';
 
 import {
   AuthorInfo,
+  ObjectWithStringValue,
   ParsedDocumentFetchFn,
   PartialPost,
   PostType,
@@ -27,6 +28,13 @@ import urljoin = require('url-join');
 
 function is_microformat_root(p: MicroformatProperty | string): p is MicroformatRoot {
   return (p as MicroformatRoot).properties !== undefined;
+}
+
+function is_obj_with_string_value(p: unknown): p is ObjectWithStringValue {
+  return (
+    (p as ObjectWithStringValue).value !== undefined &&
+    typeof (p as ObjectWithStringValue).value === 'string'
+  );
 }
 
 function is_html(p: MicroformatProperty): p is Html {
@@ -119,7 +127,7 @@ function get_plain_text(values: MicroformatProperty[], strip = false): string | 
 
   const value = values[0];
   let v: string | null;
-  if (is_microformat_root(value) && typeof value.value === 'string') {
+  if (is_obj_with_string_value(value)) {
     v = value.value;
   } else if (typeof value === 'string') {
     v = value;
@@ -144,9 +152,12 @@ function parse_author(obj: string | MicroformatRoot): AuthorInfo {
       result.name = names[0];
     }
 
-    const photos = obj.properties.photo as string[];
+    const photos = obj.properties.photo;
     if (_.size(photos) > 0) {
-      result.photo = photos[0];
+      const photo = get_plain_text(photos);
+      if (photo) {
+        result.photo = photo;
+      }
     }
 
     const urls = obj.properties.url as string[];
@@ -161,6 +172,12 @@ function parse_author(obj: string | MicroformatRoot): AuthorInfo {
     }
   }
   return result;
+}
+
+function urlEqual(url1: string, url2: string): boolean {
+  const _url1 = url1.endsWith('/') ? url1.slice(0, -1) : url1;
+  const _url2 = url2.endsWith('/') ? url2.slice(0, -1) : url2;
+  return _url1 === _url2;
 }
 
 /**
@@ -246,7 +263,7 @@ export async function find_author(
     for (const hcard of hcards) {
       const hcard_url = get_plain_text(hcard.properties.url);
       const hcard_uid = get_plain_text(hcard.properties.uid);
-      if (hcard_url && hcard_uid && hcard_url == hcard_uid && hcard_url == author_page) {
+      if (hcard_url && hcard_uid && hcard_url === hcard_uid && urlEqual(hcard_url, author_page)) {
         return parse_author(hcard);
       }
     }
@@ -267,7 +284,7 @@ export async function find_author(
     //     author-page URL, use first such h-card, exit.
     for (const hcard of hcards) {
       const hcard_url = get_plain_text(hcard.properties.url);
-      if (hcard_url && hcard_url === author_page) {
+      if (hcard_url && urlEqual(hcard_url, author_page)) {
         return parse_author(hcard);
       }
     }
