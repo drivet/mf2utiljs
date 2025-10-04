@@ -1,19 +1,18 @@
-import { MicroformatRoot, ParsedDocument } from 'microformats-parser/dist/types';
-
-import { normalize_dt, parse_mf2 } from '.';
+import { normalize_dt } from '.';
 import {
   convert_relative_paths_to_absolute,
   find_all_entries,
   find_author,
   find_first_entry,
   interpret_cite,
-  interpret_common_properties,
+  interpret_properties,
   interpret_entry,
   interpret_event,
   interpret_feed,
   post_type_discovery,
   representative_hcard,
 } from './mf2';
+import { ParsedDocument, MicroformatRoot } from './types/microformat-parser';
 
 describe('find entry tests', () => {
   it('should return nothing when entry cannot be found', () => {
@@ -942,7 +941,7 @@ describe('interpret common properties', () => {
       items: [hevent],
     };
 
-    const partial = await interpret_common_properties(
+    const partial = await interpret_properties(
       doc,
       'https://source.url',
       null,
@@ -982,7 +981,7 @@ describe('interpret common properties', () => {
       items: [hevent],
     };
 
-    const partial = await interpret_common_properties(
+    const partial = await interpret_properties(
       doc,
       'https://source.url',
       null,
@@ -1010,7 +1009,7 @@ describe('interpret common properties', () => {
       items: [hevent],
     };
 
-    const partial = await interpret_common_properties(
+    const partial = await interpret_properties(
       doc,
       'https://source.url',
       null,
@@ -1047,7 +1046,7 @@ describe('interpret common properties', () => {
       items: [hevent],
     };
 
-    const partial = await interpret_common_properties(
+    const partial = await interpret_properties(
       doc,
       'https://source.url',
       null,
@@ -1079,7 +1078,7 @@ describe('interpret common properties', () => {
       items: [hevent],
     };
 
-    const partial = await interpret_common_properties(
+    const partial = await interpret_properties(
       doc,
       'https://source.url',
       null,
@@ -1114,7 +1113,7 @@ describe('interpret common properties', () => {
       items: [hevent],
     };
 
-    const partial = await interpret_common_properties(
+    const partial = await interpret_properties(
       doc,
       'https://source.url',
       null,

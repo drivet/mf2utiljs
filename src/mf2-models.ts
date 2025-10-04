@@ -1,4 +1,4 @@
-import { ParsedDocument } from 'microformats-parser/dist/types';
+import { ParsedDocument } from "./types/microformat-parser";
 
 export type PostType = 'h-entry' | 'h-event' | 'h-cite' | 'h-feed' | 'h-card';
 
@@ -42,6 +42,16 @@ export interface SimplifiedEvent {
   url?: string;
 }
 
+export interface SimplifiedCite {
+  type: 'cite';
+  name?: string;
+  author?: AuthorInfo;
+  url?: string;
+  uid?: string;
+  content?: string;
+  'content-plain'?: string;
+}
+
 export interface SimplifiedEntry {
   type: 'entry' | 'cite';
   name?: string;
@@ -64,15 +74,6 @@ export interface SimplifiedEntry {
   'bookmark-of'?: SimplifiedPost[];
 }
 
-export interface SimplifiedCite {
-  type: 'cite';
-  name?: string;
-  author?: AuthorInfo;
-  url?: string;
-  uid?: string;
-  content?: string;
-  'content-plain'?: string;
-}
 
 export type SimplifiedPost = SimplifiedEvent | SimplifiedEntry | SimplifiedCite;
 

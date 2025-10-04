@@ -1,12 +1,6 @@
 import * as _ from 'lodash';
 import { mf2 } from 'microformats-parser';
-import {
-  Html,
-  MicroformatProperties,
-  MicroformatProperty,
-  MicroformatRoot,
-  ParsedDocument,
-} from 'microformats-parser/dist/types';
+
 import fetch from 'node-fetch';
 import { URL } from 'url';
 import { isUri } from 'valid-url';
@@ -25,6 +19,7 @@ import {
 } from './mf2-models';
 
 import urljoin = require('url-join');
+import { MicroformatProperty, MicroformatRoot, Html, ParsedDocument, MicroformatProperties } from './types/microformat-parser';
 
 function is_microformat_root(p: MicroformatProperty | string): p is MicroformatRoot {
   return (p as MicroformatRoot).properties !== undefined;
@@ -573,14 +568,14 @@ export function convert_relative_paths_to_absolute(
  * output for a given URL.
  * @return an object as described by interpret_entry or interpret_event, or None
  **/
-async function interpret(
+export async function interpret(
   parsed: ParsedDocument,
   source_url: string,
   base_href: string | null = null,
   hentry: MicroformatRoot | null = null,
   use_rel_syndication = true,
   fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
-): Promise<SimplifiedEvent | SimplifiedEntry | SimplifiedCite | null> {
+): Promise<SimplifiedPost | null> {
   hentry = hentry || find_first_entry(parsed, ['h-entry', 'h-event', 'h-cite']);
   if (hentry) {
     const types = hentry.type || [];
@@ -616,7 +611,7 @@ async function interpret(
   return null;
 }
 
-export async function interpret_common_properties(
+export async function interpret_properties(
   parsed: ParsedDocument,
   source_url: string,
   base_href: string | null,
@@ -624,26 +619,28 @@ export async function interpret_common_properties(
   use_rel_syndication: boolean,
   fetch_mf2_func: ParsedDocumentFetchFn | null
 ): Promise<PartialPost> {
-  const result: PartialPost = {};
+  const dict: {[key: string]: string|null} = {};
   const props = hentry.properties;
 
   for (const prop of ['url', 'uid', 'photo', 'featured']) {
     const value = get_plain_text(props[prop]);
     if (value) {
-      result[prop] = value;
+      dict[prop] = value;
     }
   }
   for (const prop of ['start', 'end', 'published', 'updated', 'deleted']) {
     const date_str = get_plain_text(props[prop]);
     if (date_str) {
-      result[prop + '-str'] = date_str;
       try {
-        result[prop] = normalize_dt(date_str);
+        dict[prop] = normalize_dt(date_str);
       } catch (e) {
-        result[prop] = null;
+        dict[prop] = date_str;
       }
     }
   }
+
+  const result = dict as PartialPost;
+
   const author = await find_author(parsed, hentry, fetch_mf2_func);
   if (author) {
     result.author = author;
@@ -686,6 +683,25 @@ export async function interpret_common_properties(
   if (_.size(syndication) > 0) {
     result.syndication = syndication;
   }
+   for (const prop of ['in-reply-to', 'like-of', 'repost-of', 'bookmark-of']) {
+    for (const url_val of hentry.properties[prop] || []) {
+      (result as any)[prop] = (result as any)[prop] || [];
+      if (is_microformat_root(url_val)) {
+        (result as any)[prop].push(
+          await interpret(
+            parsed,
+            source_url,
+            base_href,
+            url_val,
+            use_rel_syndication,
+            fetch_mf2_func
+          )
+        );
+      } else {
+        (result as any)[prop].push({ url: url_val });
+      }
+    }
+  }
   return result;
 }
 
@@ -701,18 +717,46 @@ export async function interpret_event(
   if (!hentry) {
     return null;
   }
-  const result: SimplifiedEvent = (await interpret_common_properties(
+  const result = await interpret_properties(
     parsed,
     source_url,
     base_href,
     hentry,
     use_rel_syndication,
     fetch_mf2_func
-  )) as SimplifiedEvent;
+  ) as SimplifiedEvent;
   result.type = 'event';
   const name_val = get_plain_text(hentry.properties.name);
   if (name_val) {
     result.name = name_val;
+  }
+  return result;
+}
+
+export async function interpret_cite(
+  parsed: ParsedDocument,
+  source_url: string,
+  base_href: string | null = null,
+  hentry: MicroformatRoot | null = null,
+  use_rel_syndication = true,
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
+): Promise<SimplifiedCite | null> {
+  hentry = hentry || find_first_entry(parsed, ['h-cite']);
+  if (!hentry) {
+    return null;
+  }
+  const result = await interpret_properties(
+    parsed,
+    source_url,
+    base_href,
+    hentry,
+    use_rel_syndication,
+    fetch_mf2_func
+  ) as SimplifiedCite;
+  result.type = 'cite';
+  const title = get_plain_text(hentry.properties.name);
+  if (title && is_name_a_title(title, result['content-plain'])) {
+    result.name = title;
   }
   return result;
 }
@@ -763,66 +807,20 @@ export async function interpret_entry(
   if (!hentry) {
     return null;
   }
-  const result: SimplifiedEntry = (await interpret_common_properties(
+  const result = await interpret_properties(
     parsed,
     source_url,
     base_href,
     hentry,
     use_rel_syndication,
     fetch_mf2_func
-  )) as SimplifiedEntry;
+  ) as SimplifiedEntry;
   result.type = 'entry';
   const title = get_plain_text(hentry.properties.name);
   if (title && is_name_a_title(title, result['content-plain'])) {
     result.name = title;
   }
-  for (const prop of ['in-reply-to', 'like-of', 'repost-of', 'bookmark-of']) {
-    for (const url_val of hentry.properties[prop] || []) {
-      result[prop] = result[prop] || [];
-      if (is_microformat_root(url_val)) {
-        result[prop].push(
-          await interpret(
-            parsed,
-            source_url,
-            base_href,
-            url_val,
-            use_rel_syndication,
-            fetch_mf2_func
-          )
-        );
-      } else {
-        result[prop].push({ url: url_val });
-      }
-    }
-  }
-  return result;
-}
-
-export async function interpret_cite(
-  parsed: ParsedDocument,
-  source_url: string,
-  base_href: string | null = null,
-  hentry: MicroformatRoot | null = null,
-  use_rel_syndication = true,
-  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
-): Promise<SimplifiedCite | null> {
-  hentry = hentry || find_first_entry(parsed, ['h-cite']);
-  if (!hentry) {
-    return null;
-  }
-  const result: SimplifiedCite = (await interpret_common_properties(
-    parsed,
-    source_url,
-    base_href,
-    hentry,
-    use_rel_syndication,
-    fetch_mf2_func
-  )) as SimplifiedCite;
-  result.type = 'cite';
-  const title = get_plain_text(hentry.properties.name);
-  if (title && is_name_a_title(title, result['content-plain'])) {
-    result.name = title;
-  }
+ 
   return result;
 }
 
