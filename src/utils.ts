@@ -1,5 +1,5 @@
 import _ = require("lodash");
-import { ObjectWithStringValue, PostType } from "./mf2-models";
+import { ObjectWithStringValue, Mf2Type } from "./mf2-models";
 import { MicroformatProperty, MicroformatRoot, ParsedDocument } from "./types/microformat-parser";
 
 function is_obj_with_string_value(p: unknown): p is ObjectWithStringValue {
@@ -9,10 +9,14 @@ function is_obj_with_string_value(p: unknown): p is ObjectWithStringValue {
   );
 }
 
+export function matches_mf2_type(item: MicroformatRoot, types: Mf2Type[]): boolean {
+  const item_types = item.type || [];
+  return types.some((h_class) => _.includes(item_types, h_class));
+}
+
 export function is_microformat_root(p: MicroformatProperty | string): p is MicroformatRoot {
   return (p as MicroformatRoot).properties !== undefined;
 }
-
 
 /**
  * Get the first value in a list of values that we expect to be plain-text.
@@ -92,7 +96,7 @@ export function is_name_a_title(
  * @return first h-* types that matches one of the array types
  *
  */
-export function find_first_entry(parsed: ParsedDocument, types: PostType[]): MicroformatRoot {
+export function find_first_entry(parsed: ParsedDocument, types: Mf2Type[]): MicroformatRoot {
   return find_all_entries_gen(parsed, types, false).next().value;
 }
 
@@ -109,7 +113,7 @@ export function find_first_entry(parsed: ParsedDocument, types: PostType[]): Mic
  */
 export function find_all_entries(
   parsed: ParsedDocument,
-  types: PostType[],
+  types: Mf2Type[],
   include_properties = false
 ): MicroformatRoot[] {
   return [...find_all_entries_gen(parsed, types, include_properties)];
@@ -117,7 +121,7 @@ export function find_all_entries(
 
 export function* find_all_entries_gen(
   parsed: ParsedDocument,
-  types: PostType[],
+  types: Mf2Type[],
   include_properties: boolean
 ): Generator<MicroformatRoot> {
   const queue: MicroformatRoot[] = [...parsed.items];
@@ -126,8 +130,7 @@ export function* find_all_entries_gen(
     if (!item) {
       throw new Error('item is undefined');
     }
-    const item_types = item.type || [];
-    if (types.some((h_class) => _.includes(item_types, h_class))) {
+    if (matches_mf2_type(item, types)) {
       yield item;
     }
     queue.push(...(item.children || []));

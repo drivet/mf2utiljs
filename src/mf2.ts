@@ -6,7 +6,7 @@ import { URL } from 'url';
 
 import {
   ParsedDocumentFetchFn,
-  PartialPost,
+  PostProperties,
   SimplifiedCite,
   SimplifiedEntry,
   SimplifiedEvent,
@@ -17,7 +17,7 @@ import {
 import urljoin = require('url-join');
 import { MicroformatProperty, MicroformatRoot, Html, ParsedDocument, MicroformatProperties } from './types/microformat-parser';
 import { find_author } from './author';
-import { find_first_entry, get_plain_text, is_microformat_root, is_name_a_title } from './utils';
+import { find_first_entry, get_plain_text, is_microformat_root, is_name_a_title, matches_mf2_type } from './utils';
 
 function is_html(p: MicroformatProperty): p is Html {
   return p !== undefined && (p as Html).html !== undefined;
@@ -144,8 +144,7 @@ export async function interpret(
 ): Promise<SimplifiedPost | null> {
   hentry = hentry || find_first_entry(parsed, ['h-entry', 'h-event', 'h-cite']);
   if (hentry) {
-    const types = hentry.type || [];
-    if (_.includes(types, 'h-event')) {
+    if (matches_mf2_type(hentry, ['h-event'])) {
       return interpret_event(
         parsed,
         source_url,
@@ -154,7 +153,7 @@ export async function interpret(
         use_rel_syndication,
         fetch_mf2_func
       );
-    } else if (_.includes(types, 'h-entry')) {
+    } else if (matches_mf2_type(hentry, ['h-entry'])) {
       return interpret_entry(
         parsed,
         source_url,
@@ -163,7 +162,7 @@ export async function interpret(
         use_rel_syndication,
         fetch_mf2_func
       );
-    } else if (_.includes(types, 'h-cite')) {
+    } else if (matches_mf2_type(hentry, ['h-cite'])) {
       return interpret_cite(
         parsed,
         source_url,
@@ -184,7 +183,7 @@ export async function interpret_properties(
   hentry: MicroformatRoot,
   use_rel_syndication: boolean,
   fetch_mf2_func: ParsedDocumentFetchFn | null
-): Promise<PartialPost> {
+): Promise<PostProperties> {
   const dict: {[key: string]: string|null} = {};
   const props = hentry.properties;
 
@@ -205,7 +204,7 @@ export async function interpret_properties(
     }
   }
 
-  const result = dict as PartialPost;
+  const result = dict as PostProperties;
 
   const author = await find_author(parsed, hentry, fetch_mf2_func);
   if (author) {
@@ -230,6 +229,17 @@ export async function interpret_properties(
     );
     result['content-plain'] = content_value as string;
   }
+ 
+  const name = get_plain_text(hentry.properties.name);
+  if (name) {
+    if (matches_mf2_type(hentry, ['h-entry', 'h-cite'])) {
+      if (is_name_a_title(name, dict['content-plain'])) {
+        dict.name = name;
+      }
+    } else {
+      dict.name = name;
+    }
+  }
 
   const summary_prop = props.summary;
   if (summary_prop) {
@@ -249,7 +259,7 @@ export async function interpret_properties(
   if (_.size(syndication) > 0) {
     result.syndication = syndication;
   }
-   for (const prop of ['in-reply-to', 'like-of', 'repost-of', 'bookmark-of']) {
+  for (const prop of ['in-reply-to', 'like-of', 'repost-of', 'bookmark-of']) {
     for (const url_val of hentry.properties[prop] || []) {
       (result as any)[prop] = (result as any)[prop] || [];
       if (is_microformat_root(url_val)) {
@@ -290,13 +300,12 @@ export async function interpret_event(
     hentry,
     use_rel_syndication,
     fetch_mf2_func
-  ) as SimplifiedEvent;
-  result.type = 'event';
-  const name_val = get_plain_text(hentry.properties.name);
-  if (name_val) {
-    result.name = name_val;
+  );
+
+  return {
+    type: 'event',
+    ...result
   }
-  return result;
 }
 
 export async function interpret_cite(
@@ -318,13 +327,12 @@ export async function interpret_cite(
     hentry,
     use_rel_syndication,
     fetch_mf2_func
-  ) as SimplifiedCite;
-  result.type = 'cite';
-  const title = get_plain_text(hentry.properties.name);
-  if (title && is_name_a_title(title, result['content-plain'])) {
-    result.name = title;
+  );
+
+  return {
+    type: 'cite',
+    ...result
   }
-  return result;
 }
 
 /**
@@ -380,14 +388,11 @@ export async function interpret_entry(
     hentry,
     use_rel_syndication,
     fetch_mf2_func
-  ) as SimplifiedEntry;
-  result.type = 'entry';
-  const title = get_plain_text(hentry.properties.name);
-  if (title && is_name_a_title(title, result['content-plain'])) {
-    result.name = title;
+  );
+  return {
+    type: 'entry',
+    ...result
   }
- 
-  return result;
 }
 
 /**
@@ -415,7 +420,7 @@ export async function interpret_feed(
 
   const result: SimplifiedFeed = {};
 
-  let children;
+  let children: MicroformatRoot[];
   if (hfeed) {
     const names = hfeed.properties.name;
     if (names) {

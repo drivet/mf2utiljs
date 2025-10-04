@@ -1,6 +1,6 @@
 import { ParsedDocument } from "./types/microformat-parser";
 
-export type PostType = 'h-entry' | 'h-event' | 'h-cite' | 'h-feed' | 'h-card';
+export type Mf2Type = 'h-entry' | 'h-event' | 'h-cite' | 'h-feed' | 'h-card';
 
 export interface ObjectWithStringValue {
   value: string;
@@ -14,44 +14,26 @@ export interface AuthorInfo {
 
 export type ParsedDocumentFetchFn = (url: string) => Promise<ParsedDocument>;
 
-export interface PartialPost {
-  url?: string;
-  uid?: string;
-  author?: AuthorInfo;
-  photo?: string;
-  featured?: string;
+export interface EventProperties {
+  name?: string;
+  summary?: string;
   start?: string;
   end?: string;
+  url?: string;
+  content?: string;
+}
+
+export interface CiteProperties {
+  name?: string;
+  author?: AuthorInfo;
   published?: string;
-  updated?: string;
-  deleted?: string;
-  content?: string;
-  'content-plain'?: string;
-  summary?: string;
-  syndication?: string[];
-}
-
-export interface SimplifiedEvent {
-  type: 'event';
-  name?: string;
-  summary?: string;
-  start?: string;
-  end?: string;
-  url?: string;
-}
-
-export interface SimplifiedCite {
-  type: 'cite';
-  name?: string;
-  author?: AuthorInfo;
   url?: string;
   uid?: string;
   content?: string;
   'content-plain'?: string;
 }
 
-export interface SimplifiedEntry {
-  type: 'entry';
+export interface EntryProperties {
   name?: string;
   url?: string;
   uid?: string;
@@ -72,6 +54,19 @@ export interface SimplifiedEntry {
   'bookmark-of'?: SimplifiedPost[];
 }
 
+export type PostProperties = EventProperties & CiteProperties & EntryProperties;
+
+export interface SimplifiedEvent extends EventProperties {
+  type: 'event';
+}
+
+export interface SimplifiedCite extends CiteProperties {
+  type: 'cite';
+}
+
+export interface SimplifiedEntry extends EntryProperties {
+  type: 'entry';
+}
 
 export type SimplifiedPost = SimplifiedEvent | SimplifiedEntry | SimplifiedCite;
 
