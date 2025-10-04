@@ -132,7 +132,7 @@ export function convert_relative_paths_to_absolute(
  * rel=syndication on each entry.
  * @param fetch_mf2_func: (optional) function to fetch mf2 parsed
  * output for a given URL.
- * @return an object as described by interpret_entry or interpret_event, or None
+ * @return an object as described by interpret_entry or interpret_event, or null
  **/
 export async function interpret(
   parsed: ParsedDocument,
@@ -194,6 +194,7 @@ export async function interpret_properties(
       result[prop] = value;
     }
   }
+
   for (const prop of ['start', 'end', 'published', 'updated', 'deleted']) {
     const date_str = get_plain_text(props[prop]);
     if (date_str) {
@@ -247,17 +248,11 @@ export async function interpret_properties(
 
   // TODO: set up location info
 
-  let syndication: string[] = [];
-  if (use_rel_syndication) {
-    const rel_syndications = (parsed.rels || {}).syndication || [];
-    const hentry_syndications = hentry.properties.syndication || [];
-    syndication = [...new Set([...rel_syndications, ...hentry_syndications])] as string[];
-  } else {
-    syndication = (hentry.properties.syndication || []) as string[];
-  }
+  const syndication: string[] = find_syndication(use_rel_syndication, parsed, hentry);
   if (_.size(syndication) > 0) {
     result.syndication = syndication;
   }
+
   for (const prop of ['in-reply-to', 'like-of', 'repost-of', 'bookmark-of']) {
     for (const url_val of hentry.properties[prop] || []) {
       result[prop] = (result as any)[prop] || [];
@@ -280,6 +275,42 @@ export async function interpret_properties(
   return result as PostProperties;
 }
 
+function find_syndication(use_rel_syndication: boolean, parsed: ParsedDocument, hentry: MicroformatRoot) {
+  let syndication: string[] = [];
+  if (use_rel_syndication) {
+    const rel_syndications = (parsed.rels || {}).syndication || [];
+    const hentry_syndications = hentry.properties.syndication || [];
+    syndication = [...new Set([...rel_syndications, ...hentry_syndications])] as string[];
+  } else {
+    syndication = (hentry.properties.syndication || []) as string[];
+  }
+  return syndication;
+}
+
+/**
+ * Given a document containing an h-event, return an object
+ * {
+ * 'type': 'cite',
+ * 'url': the permalink url of the document (may be different than source_url),
+ * 'start': datetime the event starts
+ * 'end': datetime the event ends
+ * 'name': event name (or title),
+ * 'summary': short summary of the event
+ * 'content': body of entry (contains HTML),
+ * }
+ * @param parsed the result of parsing a document containing mf2 markup
+ * @param source_url the URL of the parsed document, used by the authorship algorithm
+ * @param base_href (optional) the href value of the base tag
+ * @param hentry (optional) the item in the above document representing the h-entry. If
+ * not provided, we can fetch the first matching node
+ * @param use_rel_syndication: (optional, default true) Whether to
+ * include rel=syndication in the list of syndication sources. Sometimes
+ * useful to set this to False when parsing h-feeds that erroneously include
+ * rel=syndication on each entry.
+ * @param fetch_mf2_func: (optional) function to fetch mf2 parsed output for a given URL,
+ *   used by the h-card processing in case we need to fetch a different page (pass null to prevent this).
+ * @return an object with some or all of the described properties, or null
+ **/
 export async function interpret_event(
   parsed: ParsedDocument,
   source_url: string,
@@ -307,6 +338,34 @@ export async function interpret_event(
   }
 }
 
+/**
+ * Given a document containing an h-cite, return an object
+ * {
+ * 'type': 'cite',
+ * 'url': the permalink url of the document (may be different than source_url),
+ * 'uid': a URL/URI that uniquely/canonically identifies the cited work, canonical permalink.
+ * 'published': datetime or date,
+ * 'name': title of the entry,
+ * 'content': body of entry (contains HTML),
+ * 'author': {
+ *   'name': author name,
+ *   'url': author url,
+ *   'photo': author photo
+ *  },
+ * }
+ * @param parsed the result of parsing a document containing mf2 markup
+ * @param source_url the URL of the parsed document, used by the authorship algorithm
+ * @param base_href (optional) the href value of the base tag
+ * @param hentry (optional) the item in the above document representing the h-entry. If
+ * not provided, we can fetch the first matching node
+ * @param use_rel_syndication: (optional, default true) Whether to
+ * include rel=syndication in the list of syndication sources. Sometimes
+ * useful to set this to False when parsing h-feeds that erroneously include
+ * rel=syndication on each entry.
+ * @param fetch_mf2_func: (optional) function to fetch mf2 parsed output for a given URL,
+ *   used by the h-card processing in case we need to fetch a different page (pass null to prevent this).
+ * @return an object with some or all of the described properties, or null
+ **/
 export async function interpret_cite(
   parsed: ParsedDocument,
   source_url: string,
@@ -359,13 +418,14 @@ export async function interpret_cite(
  * @param parsed the result of parsing a document containing mf2 markup
  * @param source_url the URL of the parsed document, used by the authorship algorithm
  * @param base_href (optional) the href value of the base tag
- * @param hentry (optional) the item in the above document representing the h-entry. if
- * provided, we can avoid a redundant call to find_first_entry
- * @param use_rel_syndication: (optional, default True) Whether to
+ * @param hentry (optional) the item in the above document representing the h-entry. If
+ * not provided, we can fetch the first matching node
+ * @param use_rel_syndication: (optional, default true) Whether to
  * include rel=syndication in the list of syndication sources. Sometimes
  * useful to set this to False when parsing h-feeds that erroneously include
  * rel=syndication on each entry.
- * @param fetch_mf2_func: (optional) function to fetch mf2 parsed output for a given URL.
+ * @param fetch_mf2_func: (optional) function to fetch mf2 parsed output for a given URL,
+ *   used by the h-card processing in case we need to fetch a different page (pass null to prevent this).
  * @return an object with some or all of the described properties
  **/
 export async function interpret_entry(
