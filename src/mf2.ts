@@ -184,27 +184,26 @@ export async function interpret_properties(
   use_rel_syndication: boolean,
   fetch_mf2_func: ParsedDocumentFetchFn | null
 ): Promise<PostProperties> {
-  const dict: {[key: string]: string|null} = {};
+  const result: {[k: string]: any} = {};
+
   const props = hentry.properties;
 
   for (const prop of ['url', 'uid', 'photo', 'featured']) {
     const value = get_plain_text(props[prop]);
     if (value) {
-      dict[prop] = value;
+      result[prop] = value;
     }
   }
   for (const prop of ['start', 'end', 'published', 'updated', 'deleted']) {
     const date_str = get_plain_text(props[prop]);
     if (date_str) {
       try {
-        dict[prop] = normalize_dt(date_str);
+        result[prop] = normalize_dt(date_str);
       } catch (e) {
-        dict[prop] = date_str;
+        result[prop] = date_str;
       }
     }
   }
-
-  const result = dict as PostProperties;
 
   const author = await find_author(parsed, hentry, fetch_mf2_func);
   if (author) {
@@ -233,11 +232,11 @@ export async function interpret_properties(
   const name = get_plain_text(hentry.properties.name);
   if (name) {
     if (matches_mf2_type(hentry, ['h-entry', 'h-cite'])) {
-      if (is_name_a_title(name, dict['content-plain'])) {
-        dict.name = name;
+      if (is_name_a_title(name, result['content-plain'])) {
+        result.name = name;
       }
     } else {
-      dict.name = name;
+      result.name = name;
     }
   }
 
@@ -261,9 +260,9 @@ export async function interpret_properties(
   }
   for (const prop of ['in-reply-to', 'like-of', 'repost-of', 'bookmark-of']) {
     for (const url_val of hentry.properties[prop] || []) {
-      (result as any)[prop] = (result as any)[prop] || [];
+      result[prop] = (result as any)[prop] || [];
       if (is_microformat_root(url_val)) {
-        (result as any)[prop].push(
+        result[prop].push(
           await interpret(
             parsed,
             source_url,
@@ -274,11 +273,11 @@ export async function interpret_properties(
           )
         );
       } else {
-        (result as any)[prop].push({ url: url_val });
+        result[prop].push({ url: url_val });
       }
     }
   }
-  return result;
+  return result as PostProperties;
 }
 
 export async function interpret_event(
