@@ -6,8 +6,6 @@ export interface ObjectWithStringValue {
   value: string;
 }
 
-export type PlainText = string | ObjectWithStringValue;
-
 export interface AuthorInfo {
   name?: string;
   photo?: string;
@@ -53,7 +51,7 @@ export interface SimplifiedCite {
 }
 
 export interface SimplifiedEntry {
-  type: 'entry' | 'cite';
+  type: 'entry';
   name?: string;
   url?: string;
   uid?: string;
