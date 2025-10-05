@@ -1,3 +1,4 @@
+import _ = require('lodash');
 import { normalize_dt } from '.';
 import {
   convert_relative_paths_to_absolute,

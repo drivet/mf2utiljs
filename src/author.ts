@@ -10,7 +10,7 @@ import { find_all_entries, find_all_entries_gen, find_first_entry, get_plain_tex
  * @param obj the mf2 property value, either an object or a string
    @return an object containing the author's name, photo, and url
  */
-function parse_author(obj: string | MicroformatRoot): AuthorInfo {
+export function parse_author(obj: string | MicroformatRoot): AuthorInfo {
   const result: AuthorInfo = {};
   if (is_microformat_root(obj)) {
     const names = obj.properties.name as string[];

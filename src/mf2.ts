@@ -5,6 +5,7 @@ import fetch from 'node-fetch';
 import { URL } from 'url';
 
 import {
+  CommentType,
   ParsedDocumentFetchFn,
   PostProperties,
   SimplifiedCite,
@@ -16,7 +17,7 @@ import {
 
 import urljoin = require('url-join');
 import { MicroformatProperty, MicroformatRoot, Html, ParsedDocument, MicroformatProperties } from './types/microformat-parser';
-import { find_author } from './author';
+import { find_author, parse_author } from './author';
 import { find_first_entry, get_plain_text, is_microformat_root, is_name_a_title, matches_mf2_type } from './utils';
 
 function is_html(p: MicroformatProperty): p is Html {
@@ -505,4 +506,88 @@ export async function interpret_feed(
   }
   result.entries = entries;
   return result;
+}
+
+
+export function classify_comment(parsed: ParsedDocument, target_urls: string[]): CommentType[] {
+  function process_references(objs: MicroformatProperty[], reftypes: CommentType[], result: CommentType[]) {
+    for (const obj of objs) {
+      if (is_microformat_root(obj)) {
+        const urls = obj.properties['url'] || [];
+        if (urls.some(p => target_urls.includes(p as any))) {
+          result.push(...(reftypes.filter(r => !result.includes(r))));
+        }
+      } else if (target_urls.includes(obj as any)) {
+        result.push(...(reftypes.filter(r => !result.includes(r))));
+      }
+    }
+  }
+
+  const result: CommentType[] = [];
+  const hentry = find_first_entry(parsed, ['h-entry']);
+  if (!hentry) {
+    return [];
+  }
+
+  const properties = hentry.properties;
+  const reply_type: CommentType[] = ['reply'];
+  if ('rsvp' in properties) {
+    reply_type.push('rsvp');
+  }
+  if ('invitee' in properties) {
+    reply_type.push('invite');
+  }
+  
+  // TODO handle rel=in-reply-to
+  for (const prop of ['in-reply-to', 'reply-to', 'reply']) {
+    const props = hentry.properties[prop] || [];
+    process_references(props, reply_type, result);
+  }
+  for (const prop of ['like-of', 'like']) {
+    const props = hentry.properties[prop] || [];
+    process_references(props, ['like'], result);
+  }
+  
+  for (const prop of ['repost-of', 'repost']) {
+    const props = hentry.properties[prop] || [];
+    process_references(props, ['repost'], result);
+  }
+
+  return result;
+}
+
+export async function interpret_comment(
+  parsed: ParsedDocument,
+  source_url: string,
+  target_urls: string[],
+  base_href: string | null = null,
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2)
+  : Promise<SimplifiedEntry | null> {
+
+  const item = find_first_entry(parsed, ['h-entry']);
+  if (item) {
+    const result = await interpret_entry(
+      parsed,
+      source_url,
+      base_href,
+      item,
+      true,
+      fetch_mf2_func
+    );
+    if (result) {
+      result['comment-type'] = classify_comment(parsed, target_urls);
+      const rsvp = get_plain_text(item.properties['rsvp'])
+      if (rsvp) {
+        result.rsvp = rsvp;
+      }
+
+      const invitees = (item.properties['invitees'] || [])
+        .filter(p => is_microformat_root(p) || typeof p == 'string');
+      if (invitees) {
+        result['invitees'] = invitees.map(i => parse_author(i));
+      }
+    }
+    return result
+  }
+  return null;
 }

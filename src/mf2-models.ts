@@ -1,6 +1,7 @@
 import { ParsedDocument } from "./types/microformat-parser";
 
 export type Mf2Type = 'h-entry' | 'h-event' | 'h-cite' | 'h-feed' | 'h-card';
+export type CommentType = 'like' | 'reply' | 'repost' | 'rsvp' | 'invite'
 
 export interface ObjectWithStringValue {
   value: string;
@@ -66,6 +67,11 @@ export interface SimplifiedCite extends CiteProperties {
 
 export interface SimplifiedEntry extends EntryProperties {
   type: 'entry';
+
+  // when interpreting webmentions
+  'comment-type'?: CommentType[];
+  rsvp?: string;
+  invitees?: AuthorInfo[];
 }
 
 export type SimplifiedPost = SimplifiedEvent | SimplifiedEntry | SimplifiedCite;
