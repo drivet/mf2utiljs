@@ -1,9 +1,9 @@
-import * as _ from 'lodash';
+import { size } from 'lodash';
 import { mf2 } from 'microformats-parser';
-
 import fetch from 'node-fetch';
 import { URL } from 'url';
 
+import { find_author, parse_author } from './author';
 import {
   CommentType,
   ParsedDocumentFetchFn,
@@ -14,11 +14,22 @@ import {
   SimplifiedFeed,
   SimplifiedPost,
 } from './mf2-models';
+import {
+  Html,
+  MicroformatProperty,
+  MicroformatRoot,
+  ParsedDocument,
+} from './types/microformat-parser';
+import {
+  find_first_entry,
+  get_plain_text,
+  is_microformat_root,
+  is_name_a_title,
+  matches_mf2_type,
+} from './utils';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 import urljoin = require('url-join');
-import { MicroformatProperty, MicroformatRoot, Html, ParsedDocument, MicroformatProperties } from './types/microformat-parser';
-import { find_author, parse_author } from './author';
-import { find_first_entry, get_plain_text, is_microformat_root, is_name_a_title, matches_mf2_type } from './utils';
 
 function is_html(p: MicroformatProperty): p is Html {
   return p !== undefined && (p as Html).html !== undefined;
@@ -88,7 +99,7 @@ export function normalize_dt(s: string): string | null {
 export function convert_relative_paths_to_absolute(
   source_url: string,
   base_href: string | null,
-  html: string
+  html: string,
 ): string {
   function convert(match: string, p1: string, p2: string, p3: string): string {
     const base_url = base_href ? urljoin(source_url, base_href) : source_url;
@@ -141,7 +152,7 @@ export async function interpret(
   base_href: string | null = null,
   hentry: MicroformatRoot | null = null,
   use_rel_syndication = true,
-  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2,
 ): Promise<SimplifiedPost | null> {
   hentry = hentry || find_first_entry(parsed, ['h-entry', 'h-event', 'h-cite']);
   if (hentry) {
@@ -152,7 +163,7 @@ export async function interpret(
         base_href,
         hentry,
         use_rel_syndication,
-        fetch_mf2_func
+        fetch_mf2_func,
       );
     } else if (matches_mf2_type(hentry, ['h-entry'])) {
       return interpret_entry(
@@ -161,7 +172,7 @@ export async function interpret(
         base_href,
         hentry,
         use_rel_syndication,
-        fetch_mf2_func
+        fetch_mf2_func,
       );
     } else if (matches_mf2_type(hentry, ['h-cite'])) {
       return interpret_cite(
@@ -170,7 +181,7 @@ export async function interpret(
         base_href,
         hentry,
         use_rel_syndication,
-        fetch_mf2_func
+        fetch_mf2_func,
       );
     }
   }
@@ -183,9 +194,9 @@ export async function interpret_properties(
   base_href: string | null,
   hentry: MicroformatRoot,
   use_rel_syndication: boolean,
-  fetch_mf2_func: ParsedDocumentFetchFn | null
+  fetch_mf2_func: ParsedDocumentFetchFn | null,
 ): Promise<PostProperties> {
-  const result: {[k: string]: any} = {};
+  const result: { [k: string]: any } = {};
 
   const props = hentry.properties;
 
@@ -201,7 +212,7 @@ export async function interpret_properties(
     if (date_str) {
       try {
         result[prop] = normalize_dt(date_str);
-      } catch (e) {
+      } catch {
         result[prop] = date_str;
       }
     }
@@ -226,11 +237,11 @@ export async function interpret_properties(
     result.content = convert_relative_paths_to_absolute(
       source_url,
       base_href,
-      content_html as string
+      content_html as string,
     );
     result['content-plain'] = content_value as string;
   }
- 
+
   const name = get_plain_text(hentry.properties.name);
   if (name) {
     if (matches_mf2_type(hentry, ['h-entry', 'h-cite'])) {
@@ -250,7 +261,7 @@ export async function interpret_properties(
   // TODO: set up location info
 
   const syndication: string[] = find_syndication(use_rel_syndication, parsed, hentry);
-  if (_.size(syndication) > 0) {
+  if (size(syndication) > 0) {
     result.syndication = syndication;
   }
 
@@ -265,8 +276,8 @@ export async function interpret_properties(
             base_href,
             url_val,
             use_rel_syndication,
-            fetch_mf2_func
-          )
+            fetch_mf2_func,
+          ),
         );
       } else {
         result[prop].push({ url: url_val });
@@ -276,7 +287,11 @@ export async function interpret_properties(
   return result as PostProperties;
 }
 
-function find_syndication(use_rel_syndication: boolean, parsed: ParsedDocument, hentry: MicroformatRoot) {
+function find_syndication(
+  use_rel_syndication: boolean,
+  parsed: ParsedDocument,
+  hentry: MicroformatRoot,
+) {
   let syndication: string[] = [];
   if (use_rel_syndication) {
     const rel_syndications = (parsed.rels || {}).syndication || [];
@@ -318,7 +333,7 @@ export async function interpret_event(
   base_href: string | null = null,
   hentry: MicroformatRoot | null = null,
   use_rel_syndication = true,
-  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2,
 ): Promise<SimplifiedEvent | null> {
   hentry = hentry || find_first_entry(parsed, ['h-event']);
   if (!hentry) {
@@ -330,13 +345,13 @@ export async function interpret_event(
     base_href,
     hentry,
     use_rel_syndication,
-    fetch_mf2_func
+    fetch_mf2_func,
   );
 
   return {
     type: 'event',
-    ...result
-  }
+    ...result,
+  };
 }
 
 /**
@@ -373,7 +388,7 @@ export async function interpret_cite(
   base_href: string | null = null,
   hentry: MicroformatRoot | null = null,
   use_rel_syndication = true,
-  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2,
 ): Promise<SimplifiedCite | null> {
   hentry = hentry || find_first_entry(parsed, ['h-cite']);
   if (!hentry) {
@@ -385,13 +400,13 @@ export async function interpret_cite(
     base_href,
     hentry,
     use_rel_syndication,
-    fetch_mf2_func
+    fetch_mf2_func,
   );
 
   return {
     type: 'cite',
-    ...result
-  }
+    ...result,
+  };
 }
 
 /**
@@ -435,7 +450,7 @@ export async function interpret_entry(
   base_href: string | null = null,
   hentry: MicroformatRoot | null = null,
   use_rel_syndication = true,
-  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2,
 ): Promise<SimplifiedEntry | null> {
   hentry = hentry || find_first_entry(parsed, ['h-entry']);
   if (!hentry) {
@@ -447,12 +462,12 @@ export async function interpret_entry(
     base_href,
     hentry,
     use_rel_syndication,
-    fetch_mf2_func
+    fetch_mf2_func,
   );
   return {
     type: 'entry',
-    ...result
-  }
+    ...result,
+  };
 }
 
 /**
@@ -474,7 +489,7 @@ export async function interpret_feed(
   base_href: string | null = null,
   hfeed: MicroformatRoot | null = null,
   use_rel_syndication = true,
-  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2,
 ): Promise<SimplifiedFeed> {
   hfeed = hfeed || find_first_entry(parsed, ['h-feed']);
 
@@ -498,7 +513,7 @@ export async function interpret_feed(
       base_href,
       child,
       use_rel_syndication,
-      fetch_mf2_func
+      fetch_mf2_func,
     );
     if (entry) {
       entries.push(entry);
@@ -508,17 +523,20 @@ export async function interpret_feed(
   return result;
 }
 
-
 export function classify_comment(parsed: ParsedDocument, target_urls: string[]): CommentType[] {
-  function process_references(objs: MicroformatProperty[], reftypes: CommentType[], result: CommentType[]) {
+  function process_references(
+    objs: MicroformatProperty[],
+    reftypes: CommentType[],
+    result: CommentType[],
+  ) {
     for (const obj of objs) {
       if (is_microformat_root(obj)) {
         const urls = obj.properties['url'] || [];
-        if (urls.some(p => target_urls.includes(p as any))) {
-          result.push(...(reftypes.filter(r => !result.includes(r))));
+        if (urls.some((p) => target_urls.includes(p as any))) {
+          result.push(...reftypes.filter((r) => !result.includes(r)));
         }
       } else if (target_urls.includes(obj as any)) {
-        result.push(...(reftypes.filter(r => !result.includes(r))));
+        result.push(...reftypes.filter((r) => !result.includes(r)));
       }
     }
   }
@@ -537,7 +555,7 @@ export function classify_comment(parsed: ParsedDocument, target_urls: string[]):
   if ('invitee' in properties) {
     reply_type.push('invite');
   }
-  
+
   // TODO handle rel=in-reply-to
   for (const prop of ['in-reply-to', 'reply-to', 'reply']) {
     const props = hentry.properties[prop] || [];
@@ -547,7 +565,7 @@ export function classify_comment(parsed: ParsedDocument, target_urls: string[]):
     const props = hentry.properties[prop] || [];
     process_references(props, ['like'], result);
   }
-  
+
   for (const prop of ['repost-of', 'repost']) {
     const props = hentry.properties[prop] || [];
     process_references(props, ['repost'], result);
@@ -561,33 +579,26 @@ export async function interpret_comment(
   source_url: string,
   target_urls: string[],
   base_href: string | null = null,
-  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2)
-  : Promise<SimplifiedEntry | null> {
-
+  fetch_mf2_func: ParsedDocumentFetchFn | null = parse_mf2,
+): Promise<SimplifiedEntry | null> {
   const item = find_first_entry(parsed, ['h-entry']);
   if (item) {
-    const result = await interpret_entry(
-      parsed,
-      source_url,
-      base_href,
-      item,
-      true,
-      fetch_mf2_func
-    );
+    const result = await interpret_entry(parsed, source_url, base_href, item, true, fetch_mf2_func);
     if (result) {
       result['comment-type'] = classify_comment(parsed, target_urls);
-      const rsvp = get_plain_text(item.properties['rsvp'])
+      const rsvp = get_plain_text(item.properties['rsvp']);
       if (rsvp) {
         result.rsvp = rsvp;
       }
 
-      const invitees = (item.properties['invitees'] || [])
-        .filter(p => is_microformat_root(p) || typeof p == 'string');
+      const invitees = (item.properties['invitees'] || []).filter(
+        (p) => is_microformat_root(p) || typeof p == 'string',
+      );
       if (invitees) {
-        result['invitees'] = invitees.map(i => parse_author(i));
+        result['invitees'] = invitees.map((i) => parse_author(i));
       }
     }
-    return result
+    return result;
   }
   return null;
 }

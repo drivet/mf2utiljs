@@ -1,5 +1,5 @@
-import { post_type_discovery } from "./post-type";
-import { MicroformatRoot } from "./types/microformat-parser";
+import { post_type_discovery } from './post-type';
+import { MicroformatRoot } from './types/microformat-parser';
 
 describe('post type discovery tests', () => {
   it('should discover an event', () => {

@@ -1,6 +1,7 @@
-import _ = require("lodash");
-import { ObjectWithStringValue, Mf2Type } from "./mf2-models";
-import { MicroformatProperty, MicroformatRoot, ParsedDocument } from "./types/microformat-parser";
+import { flatten, includes, size } from 'lodash';
+
+import { Mf2Type, ObjectWithStringValue } from './mf2-models';
+import { MicroformatProperty, MicroformatRoot, ParsedDocument } from './types/microformat-parser';
 
 function is_obj_with_string_value(p: unknown): p is ObjectWithStringValue {
   return (
@@ -11,7 +12,7 @@ function is_obj_with_string_value(p: unknown): p is ObjectWithStringValue {
 
 export function matches_mf2_type(item: MicroformatRoot, types: Mf2Type[]): boolean {
   const item_types = item.type || [];
-  return types.some((h_class) => _.includes(item_types, h_class));
+  return types.some((h_class) => includes(item_types, h_class));
 }
 
 export function is_microformat_root(p: MicroformatProperty | string): p is MicroformatRoot {
@@ -27,7 +28,7 @@ export function is_microformat_root(p: MicroformatProperty | string): p is Micro
  * @return the text value or null
  */
 export function get_plain_text(values: MicroformatProperty[], strip = false): string | null {
-  if (_.size(values) === 0) {
+  if (size(values) === 0) {
     return null;
   }
 
@@ -42,7 +43,6 @@ export function get_plain_text(values: MicroformatProperty[], strip = false): st
   }
   return v && strip ? v.trim() : v;
 }
-
 
 /**
  * Determine whether the name property represents an explicit title.
@@ -67,14 +67,14 @@ export function get_plain_text(values: MicroformatProperty[], strip = false): st
  */
 export function is_name_a_title(
   name: string | null | undefined,
-  content: string | null | undefined
+  content: string | null | undefined,
 ): boolean {
   function normalize(s: string) {
     s = s.normalize('NFKD');
     s = s.toLowerCase();
     s = s.replace(
       /(~|`|!|@|#|$|%|^|&|\*|\(|\)|{|}|\[|\]|;|:|"|'|<|,|\.|>|\?|\/|\\|\||-|_|\+|=)/g,
-      ''
+      '',
     );
     s = s.replace(/\s+/g, '');
     return s;
@@ -114,7 +114,7 @@ export function find_first_entry(parsed: ParsedDocument, types: Mf2Type[]): Micr
 export function find_all_entries(
   parsed: ParsedDocument,
   types: Mf2Type[],
-  include_properties = false
+  include_properties = false,
 ): MicroformatRoot[] {
   return [...find_all_entries_gen(parsed, types, include_properties)];
 }
@@ -122,7 +122,7 @@ export function find_all_entries(
 export function* find_all_entries_gen(
   parsed: ParsedDocument,
   types: Mf2Type[],
-  include_properties: boolean
+  include_properties: boolean,
 ): Generator<MicroformatRoot> {
   const queue: MicroformatRoot[] = [...parsed.items];
   while (queue.length > 0) {
@@ -135,7 +135,7 @@ export function* find_all_entries_gen(
     }
     queue.push(...(item.children || []));
     if (include_properties) {
-      const rootList = _.flatten(Object.values(item.properties || {})).filter(is_microformat_root);
+      const rootList = flatten(Object.values(item.properties || {})).filter(is_microformat_root);
       queue.push(...rootList);
     }
   }

@@ -1,15 +1,14 @@
-import _ = require('lodash');
 import { normalize_dt } from '.';
 import {
   convert_relative_paths_to_absolute,
   interpret_cite,
-  interpret_properties,
   interpret_entry,
   interpret_event,
   interpret_feed,
+  interpret_properties,
 } from './mf2';
 import { ParsedDocument } from './types/microformat-parser';
-import { find_first_entry, find_all_entries } from './utils';
+import { find_all_entries, find_first_entry } from './utils';
 
 describe('find entry tests', () => {
   it('should return nothing when entry cannot be found', () => {
@@ -274,7 +273,7 @@ describe('interpret common properties', () => {
       null,
       hevent,
       false,
-      null
+      null,
     );
     expect(partial?.url).toBe('https:/event.org/url');
     expect(partial?.uid).toBe('https:/event.org/uid');
@@ -314,7 +313,7 @@ describe('interpret common properties', () => {
       null,
       hevent,
       false,
-      null
+      null,
     );
 
     expect(partial?.summary).toBe('this is a summary (text)');
@@ -342,14 +341,14 @@ describe('interpret common properties', () => {
       null,
       hevent,
       false,
-      null
+      null,
     );
 
     if (!partial) {
       throw new Error('partial should be defined');
     }
-    expect(partial.content).toBeUndefined;
-    expect(partial['content-plain']).toBeUndefined;
+    expect(partial.content).toBeUndefined();
+    expect(partial['content-plain']).toBeUndefined();
   });
 
   it('should produce HTML content', async () => {
@@ -379,7 +378,7 @@ describe('interpret common properties', () => {
       null,
       hevent,
       false,
-      null
+      null,
     );
 
     if (!partial) {
@@ -411,7 +410,7 @@ describe('interpret common properties', () => {
       null,
       hevent,
       false,
-      null
+      null,
     );
 
     if (!partial) {
@@ -440,14 +439,7 @@ describe('interpret common properties', () => {
       items: [hevent],
     };
 
-    const partial = await interpret_properties(
-      doc,
-      'https://source.url',
-      null,
-      hevent,
-      true,
-      null
-    );
+    const partial = await interpret_properties(doc, 'https://source.url', null, hevent, true, null);
 
     expect(partial.syndication).toEqual(['instagram', 'twitter']);
   });
@@ -582,7 +574,6 @@ describe('interpret entry tests', () => {
   });
 
   it('should be missing a title', async () => {
-    console.log('missing title test');
     const doc: ParsedDocument = {
       rels: {
         author: ['https://author_page'],

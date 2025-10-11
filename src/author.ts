@@ -1,7 +1,14 @@
-import _ = require("lodash");
-import { AuthorInfo, ParsedDocumentFetchFn } from "./mf2-models";
-import { MicroformatRoot, ParsedDocument } from "./types/microformat-parser";
-import { find_all_entries, find_all_entries_gen, find_first_entry, get_plain_text, is_microformat_root } from "./utils";
+import { includes, isEqual, size, some } from 'lodash';
+
+import { AuthorInfo, ParsedDocumentFetchFn } from './mf2-models';
+import { MicroformatRoot, ParsedDocument } from './types/microformat-parser';
+import {
+  find_all_entries,
+  find_all_entries_gen,
+  find_first_entry,
+  get_plain_text,
+  is_microformat_root,
+} from './utils';
 
 /**
  * Parse the value of a u-author property, can either be a compound
@@ -14,12 +21,12 @@ export function parse_author(obj: string | MicroformatRoot): AuthorInfo {
   const result: AuthorInfo = {};
   if (is_microformat_root(obj)) {
     const names = obj.properties.name as string[];
-    if (_.size(names) > 0) {
+    if (size(names) > 0) {
       result.name = names[0];
     }
 
     const photos = obj.properties.photo;
-    if (_.size(photos) > 0) {
+    if (size(photos) > 0) {
       const photo = get_plain_text(photos);
       if (photo) {
         result.photo = photo;
@@ -27,7 +34,7 @@ export function parse_author(obj: string | MicroformatRoot): AuthorInfo {
     }
 
     const urls = obj.properties.url as string[];
-    if (_.size(urls) > 0) {
+    if (size(urls) > 0) {
       result.url = urls[0];
     }
   } else if (obj) {
@@ -48,7 +55,7 @@ function urlEqual(url1: string, url2: string): boolean {
 
 function find_hentry_author(hentry: MicroformatRoot) {
   const vals = hentry.properties.author || [];
-  if (_.size(vals) === 0) {
+  if (size(vals) === 0) {
     return null;
   }
   return parse_author(vals[0] as MicroformatRoot);
@@ -67,9 +74,8 @@ function find_hentry_author(hentry: MicroformatRoot) {
 export async function find_author(
   parsed: ParsedDocument,
   hentry: MicroformatRoot | null,
-  fetch_mf2_func: ParsedDocumentFetchFn | null
+  fetch_mf2_func: ParsedDocumentFetchFn | null,
 ): Promise<AuthorInfo | null> {
-
   function find_parent_hfeed_author(hentry: MicroformatRoot) {
     const hfeeds = find_all_entries_gen(parsed, ['h-feed'], false);
     for (const hfeed of hfeeds) {
@@ -94,7 +100,7 @@ export async function find_author(
   if (author) {
     // 5.2 otherwise if author property is an http(s) URL, let the
     //     author-page have that URL
-    if (_.isEqual(Object.keys(author), ['url'])) {
+    if (isEqual(Object.keys(author), ['url'])) {
       author_page = author['url'];
     }
     // 5.1 if it has an h-card, use it, exit.
@@ -110,7 +116,7 @@ export async function find_author(
     // 6.1 if the page has a rel-author link, let the author-page's
     //     URL be the href of the rel-author link
     const rel_authors = (parsed.rels || {}).author || [];
-    if (_.size(rel_authors) > 0) {
+    if (size(rel_authors) > 0) {
       author_page = rel_authors[0];
     }
   }
@@ -173,16 +179,13 @@ export async function find_author(
  */
 export function representative_hcard(
   parsed: ParsedDocument,
-  source_url: string
+  source_url: string,
 ): MicroformatRoot | null {
   const hcards = find_all_entries(parsed, ['h-card'], true);
 
   // uid and url both match source_url
   for (const hcard of hcards) {
-    if (
-      _.includes(hcard.properties.uid, source_url) &&
-      _.includes(hcard.properties.url, source_url)
-    ) {
+    if (includes(hcard.properties.uid, source_url) && includes(hcard.properties.url, source_url)) {
       return hcard;
     }
   }
@@ -190,7 +193,7 @@ export function representative_hcard(
   // url that is also a rel=me
   const rel_mes = (parsed.rels || {}).me || [];
   for (const hcard of hcards) {
-    if (_.some(hcard.properties.url, (url) => _.includes(rel_mes, url))) {
+    if (some(hcard.properties.url, (url) => includes(rel_mes, url))) {
       return hcard;
     }
   }
@@ -199,7 +202,7 @@ export function representative_hcard(
   let found = null;
   let count = 0;
   for (const hcard of hcards) {
-    if (_.includes(hcard.properties.url, source_url)) {
+    if (includes(hcard.properties.url, source_url)) {
       found = hcard;
       count += 1;
     }

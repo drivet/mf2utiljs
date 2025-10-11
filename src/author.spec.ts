@@ -1,5 +1,5 @@
-import { representative_hcard, find_author } from "./author";
-import { ParsedDocument } from "./types/microformat-parser";
+import { find_author, representative_hcard } from './author';
+import { ParsedDocument } from './types/microformat-parser';
 
 describe('representive h-card tests', () => {
   it('should not find a representive h-card (no url in properties)', () => {

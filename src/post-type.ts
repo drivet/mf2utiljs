@@ -1,7 +1,8 @@
-import _ = require("lodash");
-import { MicroformatProperties, MicroformatRoot } from "./types/microformat-parser";
-import { get_plain_text, is_name_a_title } from "./utils";
+import { includes } from 'lodash';
 import { isUri } from 'valid-url';
+
+import { MicroformatProperties, MicroformatRoot } from './types/microformat-parser';
+import { get_plain_text, is_name_a_title } from './utils';
 
 function is_prop_uri(props: MicroformatProperties, name: string): string | undefined {
   const value = get_plain_text(props[name]);
@@ -12,10 +13,10 @@ function is_rsvp(item: MicroformatRoot): boolean {
   const rsvp = item.properties.rsvp;
   return (
     rsvp &&
-    (_.includes(rsvp, 'yes') ||
-      _.includes(rsvp, 'no') ||
-      _.includes(rsvp, 'maybe') ||
-      _.includes(rsvp, 'interested'))
+    (includes(rsvp, 'yes') ||
+      includes(rsvp, 'no') ||
+      includes(rsvp, 'maybe') ||
+      includes(rsvp, 'interested'))
   );
 }
 
@@ -30,7 +31,7 @@ function is_rsvp(item: MicroformatRoot): boolean {
  * TODO add invite, follow-of
  */
 export function post_type_discovery(item: MicroformatRoot): string {
-  if (_.includes(item.type, 'h-event')) {
+  if (includes(item.type, 'h-event')) {
     return 'event';
   }
 
@@ -51,7 +52,7 @@ export function post_type_discovery(item: MicroformatRoot): string {
   ];
 
   for (const it of impliedTypes) {
-    if (_.includes(propNames, it[0]) && is_prop_uri(props, it[0])) {
+    if (includes(propNames, it[0]) && is_prop_uri(props, it[0])) {
       return it[1];
     }
   }
@@ -89,7 +90,7 @@ export function response_type_discovery(item: MicroformatRoot): string {
   ];
 
   for (const it of impliedTypes) {
-    if (_.includes(propNames, it[0]) && is_prop_uri(props, it[0])) {
+    if (includes(propNames, it[0]) && is_prop_uri(props, it[0])) {
       return it[1];
     }
   }

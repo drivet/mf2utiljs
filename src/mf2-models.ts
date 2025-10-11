@@ -1,7 +1,7 @@
-import { ParsedDocument } from "./types/microformat-parser";
+import { ParsedDocument } from './types/microformat-parser';
 
 export type Mf2Type = 'h-entry' | 'h-event' | 'h-cite' | 'h-feed' | 'h-card';
-export type CommentType = 'like' | 'reply' | 'repost' | 'rsvp' | 'invite'
+export type CommentType = 'like' | 'reply' | 'repost' | 'rsvp' | 'invite';
 
 export interface ObjectWithStringValue {
   value: string;
